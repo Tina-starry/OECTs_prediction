@@ -84,37 +84,32 @@ def main(choice):
             if fea['u_e'][i]!=0 and not np.isnan(fea['u_e'][i]):
                 features['ueC*'][i]=fea['uC*'][i]
          
-        # 设置三次交叉验证
-        T=['uhC*']
-        df_FT=features[feature_h_name+T]
-        df_FT=df_FT.drop_duplicates().reset_index().drop(['index'],axis=1)
-        x_h_train,y_h_train,x_h_test,y_h_test,N=Data_split(42,0.9,df_FT[feature_h_name].values,df_FT[T].values.reshape(-1),log=True)
-        X_train, X_val, y_train, y_val = x_h_train,x_h_test,y_h_train,y_h_test
-        model_h = XGBRegressor(random_state=42) 
-        cv = KFold(n_splits=3, shuffle=True, random_state=722)#722， 59 976
-        results = cross_validate(model_h, X_train+X_val, y_train+y_val, cv=cv, return_estimator=True, scoring='r2')
-        model_h=[]   
-        for i, estimator in enumerate(results['estimator']):
-            model_h.append(estimator)
-        mse_scores = results['test_score']
-        mean_mse = np.mean(mse_scores)
-        print(f'Mean MSE from 3-fold cross-validation: {mean_mse}')
+        RS=[113,199,325,52,761]
+        model_h,model_e=[],[]
+        for i in tqdm(range(len(RS))):
+            T=['uhC*']
+            df_FT=features[feature_h_name+T]
+            df_FT=df_FT.drop_duplicates().reset_index().drop(['index'],axis=1)
+            x_h_train,y_h_train,x_h_test,y_h_test,N=Data_split(RS[i],0.9,df_FT[feature_h_name].values,df_FT[T].values.reshape(-1),log=True)
+            X_train, X_val, y_train, y_val = x_h_train,x_h_test,y_h_train,y_h_test
+            final_model_h = XGBRegressor(random_state=42)                
+            final_model_h.fit(X_train, y_train)
+            val_preds = final_model_h.predict(X_val)
+            val_r2 = r2_score(y_val, val_preds)
+            model_h.append(final_model_h)
+        RS=[9308,6395,9887,3827,9265]
+        for i in tqdm(range(len(RS))):      
+            T=['ueC*']
+            df_FT0=features[feature_e_name+T]
+            df_FT=df_FT0.drop_duplicates().reset_index().drop(['index'],axis=1)
+            x_e_train,y_e_train,x_e_test,y_e_test,N=Data_split(RS[i],0.9,df_FT[feature_e_name].values,df_FT[T].values.reshape(-1),log=True)
+            X_train, X_val, y_train, y_val = x_e_train,x_e_test,y_e_train,y_e_test
+            final_model_e = XGBRegressor(random_state=42)
+            final_model_e.fit(X_train, y_train)            
+            val_preds = final_model_e.predict(X_val)
+            val_r2 = r2_score(y_val, val_preds)
+            model_e.append(final_model_e)
             
-        T=['ueC*']
-        df_FT=features[feature_e_name+T]
-        df_FT=df_FT.drop_duplicates().reset_index().drop(['index'],axis=1)
-        x_e_train,y_e_train,x_e_test,y_e_test,N=Data_split(42,0.9,df_FT[feature_e_name].values,df_FT[T].values.reshape(-1),log=True)
-        X_train, X_val, y_train, y_val = x_e_train,x_e_test,y_e_train,y_e_test
-                #print('The parameters of the OECT hole mobility prediction model are being optimized',df_FT.columns.values[:-1])
-        model_e = XGBRegressor(random_state=42) 
-        cv = KFold(n_splits=3, shuffle=True, random_state=264)#264 481 917 238
-        results = cross_validate(model_e, X_train+X_val, y_train+y_val, cv=cv, return_estimator=True, scoring='r2')
-        model_e=[]    
-        for i, estimator in enumerate(results['estimator']):
-            model_e.append(estimator)
-        mse_scores = results['test_score']
-        mean_mse = np.mean(mse_scores)
-        print(results['test_score'],f'Mean MSE from 3-fold cross-validation: {mean_mse}')
         return model_h,model_e
     
     if choice==3:
@@ -133,8 +128,59 @@ def main(choice):
             print(f'{i} P type:',dataset['Polymer_smile'][h_max[i]],'uC* value:',uhC[h_max[i]])
             print(f'{i} N type:',dataset['Polymer_smile'][e_max[i]],'uC* Value',ueC[e_max[i]])
         return h_max,e_max,uhC,ueC
+    
+    if choice==4:
+        HL_module='module/UnimolHLsave_INPUT'
+        dataset_file='data/Generate_2units.npy'            
+        #df=Get_dataset_feature(dataset_file,HL_module,module,Units_file,OFET_fea,OFET_h_m,OFET_e_m)
+        col1= ['LUMO(eV)','HOMO(eV)', 'Delta_HOMO','Delta_LUMO','ue_pred']
+        col2= ['LUMO(eV)','HOMO(eV)', 'Delta_HOMO','Delta_LUMO','uh_pred']
+        targets=['u_h','u_e','Vth(eV)']
+        col=list(set(col1+col2))
+        features=pd.DataFrame(index=[i for i in range(len(fea['u_h']))],columns=col+targets+['Vth_e','Vth_h'])
+        for f in col+targets:
+            features[f]=fea[f]
+            
+        for i in range(features.shape[0]):
+            if fea['u_h'][i]!=0 and not np.isnan(fea['u_h'][i]) and not np.isnan(fea['Vth(eV)'][i]):
+                features['Vth_h'][i]=fea['Vth(eV)'][i]
+            if fea['u_e'][i]!=0 and not np.isnan(fea['u_e'][i]) and not np.isnan(fea['Vth(eV)'][i]):
+                features['Vth_e'][i]=fea['Vth(eV)'][i]
 
+        RS=[9589,638,5310,4713,7510]
+        model1=[]
+        for i in tqdm(range(len(RS))):      
+            df_FT0=features[col1+['Vth_e']]
+            df_FT=df_FT0.drop_duplicates().reset_index().drop(['index'],axis=1)
+            x_train,y_train,x_test,y_test,N=Data_split(RS[i],0.9,df_FT[col1].values,df_FT['Vth_e'].values.reshape(-1),log=False)
+            X_train, X_val, y_train, y_val = x_train,x_test,y_train,y_test
+            final_model = XGBRegressor(random_state=42)
+            final_model.fit(X_train, y_train)            
+            val_preds = final_model.predict(X_val+X_train)
+            val_r2 = r2_score(y_val+y_train, val_preds)
+            model1.append(final_model)
+            
+        RS=[5326,6937,6170,6102,7638]
+        model2=[]
+        for i in tqdm(range(len(RS))):      
+            df_FT0=features[col2+['Vth_h']]
+            df_FT=df_FT0.drop_duplicates().reset_index().drop(['index'],axis=1)
+            x_train,y_train,x_test,y_test,N=Data_split(RS[i],0.9,df_FT[col2].values,df_FT['Vth_h'].values.reshape(-1),log=False)
+            X_train, X_val, y_train, y_val = x_train,x_test,y_train,y_test
+            final_model = XGBRegressor(random_state=42)
+            final_model.fit(X_train, y_train)            
+            val_preds = final_model.predict(X_val+X_train)
+            val_r2 = r2_score(y_val+y_train, val_preds)
+            model2.append(final_model)
+        Vth_e=np.zeros(df.shape[0])
+        Vth_h=np.zeros(df.shape[0])
+        for i in range(len(model1)):    
+            Vth_e+=model1[i].predict(df[col1].values)/len(model)
+        for i in range(len(model2)):    
+            Vth_h+=model2[i].predict(df[col2].values)/len(model)
+        return Vth_h,Vth_e,model2,model1
 
 if __name__ == "__main__":
-    features_h,features_e,uhc,uec=main(3)
-    #model_h,model_e=main(2)
+    features_h,features_e,uhc,uec=main(3,df,fea)
+    model_h,model_e=main(2,df,fea)
+    Vth_h,Vth_e,model_Vth_h,model_Vth_e=main(4,df,fea)
