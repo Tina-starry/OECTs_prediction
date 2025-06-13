@@ -50,7 +50,7 @@ def Preporcess_File(file,features,targets):
     FT=FT.drop(drop_name,axis=1)
     return FT
 
-def Get_COS2(x1):#计算（N，19）形式数据的cos2
+def Get_COS2(x1):
     PHI=[]
     PP=[]
     if len(x1[0])>1:
@@ -76,7 +76,7 @@ def Get_COS2(x1):#计算（N，19）形式数据的cos2
         PHI.append(phi)
     return PHI
     
-def SMI_COS2_Prediction(smi0,module,save_file=None):#smi0为待预测dimer_list，smi_name为保存的文件名称,module为加载的模型名称
+def SMI_COS2_Prediction(smi0,module,save_file=None):
     smi=[]
     for x in smi0:
         smi+=x
@@ -138,32 +138,32 @@ def Get_COS2_Feature(smi0,module,save_file=None,N_dihe=10,Fea_Enhance=True):
             COS2_Fea.iloc[i,j]=New_COS2[i][JJ]
     return COS2_Fea
     
-def Get_Mol(mol,c):#原分子mol，获取的原子序号list：c，创建原子集合c组成的新分子
+def Get_Mol(mol,c):
     #mol=Chem.AddHs(mol)
-    atom_indices = c  # 定义一个包含要提取的原子的标号列表（无需按连接顺序）
-    editable_mol = Chem.EditableMol(Chem.Mol())# 创建一个可编辑的分子对象
-    old_to_new_index = {}# 创建一个字典，用于映射旧原子索引到新原子索引
-    for old_index in atom_indices:# 添加所需的原子到可编辑的分子中，并记录映射
+    atom_indices = c  
+    editable_mol = Chem.EditableMol(Chem.Mol())#
+    old_to_new_index = {}
+    for old_index in atom_indices:
         #print(old_index)
         atom = mol.GetAtomWithIdx(old_index)
         new_index = editable_mol.AddAtom(atom)
         old_to_new_index[old_index] = new_index
-    for bond in mol.GetBonds():# 添加所需的键到可编辑的分子中
+    for bond in mol.GetBonds():
         if bond.GetBeginAtomIdx() in atom_indices and bond.GetEndAtomIdx() in atom_indices:
             begin_atom_index = old_to_new_index[bond.GetBeginAtomIdx()]
             end_atom_index = old_to_new_index[bond.GetEndAtomIdx()]
             bond_type = bond.GetBondType()
             editable_mol.AddBond(begin_atom_index, end_atom_index, bond_type)
-    result_mol = editable_mol.GetMol()# 获取最终的可编辑分子
-    result_smiles = Chem.MolToSmiles(result_mol)# 将分子转换为SMILES字符串以进行可视化或其他操作
+    result_mol = editable_mol.GetMol()
+    result_smiles = Chem.MolToSmiles(result_mol)
     
     return result_mol
     
-def Get_dihes(mol):#获取mol中可旋转二面角
+def Get_dihes(mol):
     #pytmol label atom rank
     dihes=[]
     for bond in mol.GetBonds():
-        if bond.GetBondType().name=='SINGLE' and bond.IsInRing()==False:#寻找不在环上的单键
+        if bond.GetBondType().name=='SINGLE' and bond.IsInRing()==False:
             atom2id=bond.GetBeginAtomIdx()
             atom3id=bond.GetEndAtomIdx()
             atom2=bond.GetBeginAtom()
@@ -188,7 +188,7 @@ def Get_dihes(mol):#获取mol中可旋转二面角
                 dihes.append(dihe)
     return dihes
     
-def Dfs_paths(graph, start, end, path=[]):#从start到end的所有路径
+def Dfs_paths(graph, start, end, path=[]):
     path = path + [start]
     if start == end:
         return [path]
@@ -202,7 +202,7 @@ def Dfs_paths(graph, start, end, path=[]):#从start到end的所有路径
                 paths.append(new_path)
     return paths
 
-def Get_graph(mol):#获取分子连接图
+def Get_graph(mol):
     graph={}
     for bond in mol.GetBonds():
         atom1 = bond.GetBeginAtomIdx()
@@ -215,11 +215,10 @@ def Get_graph(mol):#获取分子连接图
         graph[atom2].append(atom1)
     return graph
     
-def Get_path_atoms(m,Mark1,Mark2):#获取连接Mark1 Mark2之间的共轭路径
-    start_atom_index = Get_id_bysymbol(m,Mark1) # 第一个碳原子
-    target_atom_index = Get_id_bysymbol(m,Mark2)  # 氧原子，索引为 -1 表示最后一个原子
+def Get_path_atoms(m,Mark1,Mark2):
+    start_atom_index = Get_id_bysymbol(m,Mark1) 
+    target_atom_index = Get_id_bysymbol(m,Mark2)
     graph=Get_graph(m)
-    # 获取所有路径
     paths = Dfs_paths(graph, start_atom_index, target_atom_index)
     ATOMS=[]
     for path in paths:
@@ -227,15 +226,15 @@ def Get_path_atoms(m,Mark1,Mark2):#获取连接Mark1 Mark2之间的共轭路径
         for atom in path:
             if atom not in ATOMS:
                 ATOMS.append(atom)
-    return ATOMS# 输出所有路径上的原子
+    return ATOMS
     
-def Get_poly_backbone(m,M1,M2):#获取分子共轭骨架
+def Get_poly_backbone(m,M1,M2):
     ssr = Chem.GetSymmSSSR(m)
     RING_Atom=[]
     idx=Get_path_atoms(m,M1,M2)
     for r_L in ssr:
         RING_Atom.append(list(r_L))
-    idx2=[]#获取相邻环
+    idx2=[]
     for bond in m.GetBonds():
         atom1 = bond.GetBeginAtomIdx()
         atom2 = bond.GetEndAtomIdx()
@@ -258,7 +257,7 @@ def Get_poly_backbone(m,M1,M2):#获取分子共轭骨架
             if j not in IDX:
                 IDX.append(j)
     #print(IDX)
-    IDX_atoms=[m.GetAtomWithIdx(x) for x in IDX]#周围官能团：
+    IDX_atoms=[m.GetAtomWithIdx(x) for x in IDX]
     IDX2=[x for x in IDX]
     for atom in IDX_atoms:
         for atom2 in atom.GetNeighbors():
@@ -291,18 +290,18 @@ def Get_poly_backbone(m,M1,M2):#获取分子共轭骨架
     for i in range(len(IDX2)):
         if IDX2[i] not in IDX4:
             IDX4.append(IDX2[i])            
-    return IDX3,IDX4#前面为包含亚甲基，后面为不包含亚甲基的部分
+    return IDX3,IDX4
 
-def Decomp_Poly(m,M1,M2,CH3=False):#分解为骨架和侧链
+def Decomp_Poly(m,M1,M2,CH3=False):
     IDX,IDX2=Get_poly_backbone(m,M1,M2)
     if CH3:
-        BB=Chem.MolFromSmiles(Chem.MolToSmiles(Get_Mol(m,IDX)))#取代基位置的根据化合价自动加氢
+        BB=Chem.MolFromSmiles(Chem.MolToSmiles(Get_Mol(m,IDX)))
         try:
             SC=Chem.GetMolFrags(AllChem.ReplaceCore(m, Get_Mol(m,IDX)),asMols=True)
         except:
             SC=[]
     else:
-        BB=Chem.MolFromSmiles(Chem.MolToSmiles(Get_Mol(m,IDX2)))#取代基位置的根据化合价自动加氢
+        BB=Chem.MolFromSmiles(Chem.MolToSmiles(Get_Mol(m,IDX2)))
         try:
             SC=Chem.GetMolFrags(AllChem.ReplaceCore(m, Get_Mol(m,IDX2)),asMols=True)
         except:
@@ -310,21 +309,19 @@ def Decomp_Poly(m,M1,M2,CH3=False):#分解为骨架和侧链
     return BB,SC
 
 
-def Get_Not_C(mol):#获取侧链非碳原子数目
+def Get_Not_C(mol):
     N=0
     for atom in mol.GetAtoms():
         if atom.GetSymbol()!='C' and atom.GetSymbol()!='*':
             N+=1
     return N
 
-def Get_Bifurcation_site(mol,mark):#获取分叉位点
+def Get_Bifurcation_site(mol,mark):
     BEG_IDX=Get_id_bysymbol(mol,mark)
     #print(BEG_IDX)
     Len=[]
     for atom in mol.GetAtoms():
-    # 检查当前原子是否为碳原子
-        if atom.GetAtomicNum() == 6:  # 6 是碳原子的原子序数
-            # 检查当前碳原子是否连接到至少一个非氢原子并且是SP3杂化
+        if atom.GetAtomicNum() == 6:  
             if atom.GetTotalNumHs()==1 and atom.GetHybridization()==Chem.HybridizationType.SP3:
                 BS=atom.GetIdx()
                 path=rdmolops.GetShortestPath(mol, BEG_IDX, BS)
@@ -348,7 +345,7 @@ def Get_SC_INF(m,M1,M2):
             N=Get_Not_C(mms[i])
             nc.append(N)
         b=np.sum(nc)
-        smi=list(set([Chem.MolToSmiles(Chem.MolFromSmiles(x)) for x in SMI2]))#侧链去重，获取侧链种类
+        smi=list(set([Chem.MolToSmiles(Chem.MolFromSmiles(x)) for x in SMI2]))
         SC=[Chem.MolFromSmiles(x) for x in smi]
         INFO=[]
         #print(smi)
@@ -360,9 +357,8 @@ def Get_SC_INF(m,M1,M2):
                 INFO.append([len(Len),Len[0],N,SC[i].GetNumAtoms()])
             else:
                 INFO.append([0,0,N,SC[i].GetNumAtoms()])
-        a=np.sort(np.array([x[1] for x in INFO]))[::-1]#排序按照分叉位点从多到少
-        #总杂原子数目
-        BS=[0,0,b]#只考虑分叉位点前两名的侧链。为0表示侧链没有分叉位点，为+N表示侧链在N号位置分叉，为-1表示没有侧链。
+        a=np.sort(np.array([x[1] for x in INFO]))[::-1]
+        BS=[0,0,b]
         for i in range(len(a)):
             try:
                 BS[i]=a[i]
@@ -458,16 +454,16 @@ def Train(train_x,train_y,test_x,test_y):
         ('Lasso Regressor',Lasso(random_state=rs)),
         ('RlasticNet Regressor',ElasticNet(random_state=rs)),#random_state=rs
         ('PolynomilaFeatures',make_pipeline(PolynomialFeatures(4), LinearRegression())),
-        ("Linear Regression", LinearRegression()), # 线性回归模型
-        ("Ridge Regression", Ridge(random_state=rs)), # 岭回归模型
-        ("Support Vector", SVR()),  # 支持向量回归模型
-        ("K-Nearest Neighbors", KNeighborsRegressor()),  # K-最近邻回归模型
-        ("Decision Tree", DecisionTreeRegressor(random_state=rs)),  # 决策树回归模型
-        ("Random Forest", RandomForestRegressor(random_state=rs)), # 随机森林回归模型
-        ("Gradient Boosting", GradientBoostingRegressor(random_state=rs)), # 梯度提升回归模型
-        ("XGBoost", XGBRegressor(random_state=rs)), # XGBoost回归模型
-        ("LightGBM", LGBMRegressor(random_state=rs)), # LightGBM回归模型
-        ("Multi-layer Perceptron", MLPRegressor( # 多层感知器（神经网络）回归模型
+        ("Linear Regression", LinearRegression()), 
+        ("Ridge Regression", Ridge(random_state=rs)),
+        ("Support Vector", SVR()), 
+        ("K-Nearest Neighbors", KNeighborsRegressor()), 
+        ("Decision Tree", DecisionTreeRegressor(random_state=rs)),
+        ("Random Forest", RandomForestRegressor(random_state=rs)),
+        ("Gradient Boosting", GradientBoostingRegressor(random_state=rs)),
+        ("XGBoost", XGBRegressor(random_state=rs)),
+        ("LightGBM", LGBMRegressor(random_state=rs)),
+        ("Multi-layer Perceptron", MLPRegressor(
             hidden_layer_sizes=(128,64,32),
             learning_rate_init=0.0001,
             activation='relu', solver='adam',
@@ -579,7 +575,7 @@ if __name__ == "__main__":
         print('The parameters of the OFET hole mobility prediction model are being optimized')
         m0=XGBRegressor(random_state=42)
         m0.fit(X_train,y_train)
-        val_preds=m0.predict(X_test)
+        val_preds=m0.predict(X_val)
         val_r2 = r2_score(y_val, val_preds)
         if val_r2>0.85 and len(m_h)<5:
             study = optuna.create_study(direction='maximize')
@@ -606,7 +602,7 @@ if __name__ == "__main__":
         print('The parameters of the OFET electron mobility prediction model are being optimized')
         m0=XGBRegressor(random_state=42)
         m0.fit(X_train,y_train)
-        val_preds=m0.predict(X_test)
+        val_preds=m0.predict(X_val)
         val_r2 = r2_score(y_val, val_preds)
         if val_r2>0.85 and len(m_e)<5:
             study = optuna.create_study(direction='maximize')
