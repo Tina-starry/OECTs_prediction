@@ -1,4 +1,4 @@
-The dataset, code for the paper 'Mimicking Human Thinking for Discovering New Materials and Yielding New Knowledge in an Emerging Field ' #Please cite
+The dataset, code for the paper 'Physical-Knowledge-Undergirded Transfer Learning Unlocks Emergent Materials and Novel Science' #Please cite
 
 #Enviroment: Python==3.8
 
