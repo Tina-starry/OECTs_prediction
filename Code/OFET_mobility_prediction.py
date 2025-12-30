@@ -9,7 +9,7 @@ import math
 from unimol_tools import MolTrain, MolPredict
 from sklearn.metrics import r2_score
 from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split, cross_val_score,cross_validate, KFold
 import pickle
 import optuna
 from sklearn.multioutput import MultiOutputRegressor
@@ -29,6 +29,7 @@ import re
 import random
 from time import time
 
+
 def Preporcess_File(file,features,targets):
     data=pd.read_csv(file)
     df=data.drop_duplicates(subset=['poly1_smiles','poly2_smiles'], keep='first', inplace=False, ignore_index=False).drop(features+targets,axis=1)
@@ -39,7 +40,7 @@ def Preporcess_File(file,features,targets):
     for i in range(df2.shape[0]):
         condition=[pd.isna(df2[feature][i])==False for feature in features]#+[pd.isna(df2[tar][i])==False for tar in targets]
         if all(condition) and df2['class'][i]=='HP':
-            idx.append(i)#特征完全且是HP类型分子
+            idx.append(i)
     FT=df2.iloc[idx,:].reset_index()
     drop_name=[]
     for i in range(FT.shape[1]):
@@ -482,7 +483,7 @@ def Train(train_x,train_y,test_x,test_y):
         print(name,mse,R2[name])
     return R2,Pred_y
 
-def Objective(trial):
+def Objective(trial):#hyperparameter optimization for XGB
     max_depth = trial.suggest_int('max_depth', 3, 10)
     learning_rate = trial.suggest_float('learning_rate', 0.01, 0.3)
     n_estimators = trial.suggest_int('n_estimators', 50, 300)
@@ -498,6 +499,172 @@ def Objective(trial):
                          objective='reg:squarederror')
     r2 = cross_val_score(model, X_train, y_train, cv=3, scoring='r2').mean()
     return r2
+
+
+def objective(trial, model_name, X, y, cv):#Comparison of performance after hyperparameter optimization for different machine learning models
+    SEED = 42
+    if model_name == 'RandomForest':
+        params = {
+            'n_estimators': trial.suggest_int('n_estimators', 50, 300),
+            'max_depth': trial.suggest_int('max_depth', 3, 20),
+            'min_samples_split': trial.suggest_int('min_samples_split', 2, 10),
+            'ccp_alpha': trial.suggest_float('ccp_alpha', 0.0, 0.1), 
+            'n_jobs': -1,
+            'random_state': SEED 
+        }
+        model = RandomForestRegressor(**params)
+        
+    elif model_name == 'XGBoost':
+        params = {
+            'n_estimators': trial.suggest_int('n_estimators', 50, 300),
+            'max_depth': trial.suggest_int('max_depth', 3, 10),
+            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
+            'subsample': trial.suggest_float('subsample', 0.6, 1.0),
+            'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 10.0, log=True),
+            'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 10.0, log=True),
+            'n_jobs': -1,
+            'random_state': SEED,
+            'verbosity': 0
+        }
+        model = xgb.XGBRegressor(**params)
+        
+    elif model_name == 'LightGBM':
+        params = {
+            'n_estimators': trial.suggest_int('n_estimators', 50, 300),
+            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
+            'num_leaves': trial.suggest_int('num_leaves', 20, 60),
+            'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 10.0, log=True),
+            'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 10.0, log=True),
+            'n_jobs': -1,
+            'random_state': SEED,
+            'verbose': -1
+        }
+        model = lgb.LGBMRegressor(**params)
+
+    elif model_name == 'GradientBoosting':
+        params = {
+            'n_estimators': trial.suggest_int('n_estimators', 50, 300),
+            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3),
+            'subsample': trial.suggest_float('subsample', 0.6, 1.0),
+            'ccp_alpha': trial.suggest_float('ccp_alpha', 0.0, 0.1),
+            'random_state': SEED
+        }
+        model = GradientBoostingRegressor(**params)
+
+    elif model_name == 'DecisionTree':
+        params = {
+            'max_depth': trial.suggest_int('max_depth', 3, 20),
+            'min_samples_split': trial.suggest_int('min_samples_split', 2, 20),
+            'ccp_alpha': trial.suggest_float('ccp_alpha', 0.0, 0.1),
+            'random_state': SEED
+        }
+        model = DecisionTreeRegressor(**params)
+
+    elif model_name == 'MLP':
+        params = {
+            'hidden_layer_sizes': trial.suggest_categorical('hidden_layer_sizes', [(50,), (100,), (50, 50)]),
+            'activation': trial.suggest_categorical('activation', ['relu', 'tanh']),
+            'alpha': trial.suggest_float('alpha', 1e-6, 1e-1, log=True),
+            'max_iter': 500,
+            'random_state': SEED, 
+            'early_stopping': True
+        }
+        model =  MLPRegressor(**params)
+        
+    elif model_name == 'SVR':
+        params = {
+            'C': trial.suggest_float('C', 0.01, 100, log=True),
+            'epsilon': trial.suggest_float('epsilon', 0.01, 1.0),
+            'kernel': trial.suggest_categorical('kernel', ['linear', 'rbf'])
+        }
+        model = SVR(**params)
+        
+    # --- H. ElasticNet ---
+    elif model_name == 'ElasticNet':
+        params = {
+            'alpha': trial.suggest_float('alpha', 0.001, 10.0, log=True),
+            'l1_ratio': trial.suggest_float('l1_ratio', 0.0, 1.0),
+            'random_state': SEED
+        }
+        model = ElasticNet(**params)
+
+
+    scores = cross_validate(model, X, y, cv=cv, scoring='neg_mean_absolute_error', n_jobs=-1)
+    return -scores['test_score'].mean()
+
+
+
+def Train_ML_model(X,y):
+    kf = KFold(n_splits=10, shuffle=True, random_state=42)
+
+    models_to_train = [
+        'RandomForest', 'XGBoost', 'LightGBM', 
+        'GradientBoosting', 'DecisionTree', 'MLP', 
+        'SVR', 'ElasticNet'
+    ]
+
+    results_list = []
+    N_TRIALS = 50  
+    trained_models = {}
+    print(f"{'='*20} Start optimizing and evaluating {'='*20}")
+
+    for model_name in models_to_train:
+        print(f"\nProcessing Model: {model_name} ...")
+        
+        from optuna.samplers import TPESampler
+
+        sampler = TPESampler(seed=42)
+        # --- Step 1: Optuna  ---
+        study = optuna.create_study(direction='minimize', sampler=sampler)
+  
+        study.optimize(lambda trial: objective(trial, model_name, X, y, kf), n_trials=N_TRIALS)
+
+        best_params = study.best_params
+        print(f"  -> Minimum MAE: {study.best_value:.4f}")
+
+        # --- Step 2: params optimisition
+        if model_name == 'RandomForest':
+            final_model = RandomForestRegressor(**best_params, n_jobs=-1, random_state=42)
+        elif model_name == 'XGBoost':
+            final_model = xgb.XGBRegressor(**best_params, n_jobs=-1, random_state=42, verbosity=0)
+        elif model_name == 'LightGBM':
+            final_model = lgb.LGBMRegressor(**best_params, n_jobs=-1, random_state=42, verbose=-1)
+        elif model_name == 'GradientBoosting':
+            final_model = GradientBoostingRegressor(**best_params, random_state=42)
+        elif model_name == 'DecisionTree':
+            final_model = DecisionTreeRegressor(**best_params, random_state=42)
+        elif model_name == 'MLP':
+            final_model = MLPRegressor(**best_params, max_iter=500, random_state=42, early_stopping=True)
+        elif model_name == 'SVR':
+            final_model = SVR(**best_params)
+        elif model_name == 'ElasticNet':
+            final_model = ElasticNet(**best_params, random_state=42)
+
+        # --- Step 3: Evaluation (R2 & MAE) ---
+        scoring_metrics = {'r2': 'r2', 'mae': 'neg_mean_absolute_error'}
+        final_cv_results = cross_validate(final_model, X, y, cv=kf, scoring=scoring_metrics,return_estimator = True, n_jobs=-1)
+
+        results_list.append({
+            'Model': model_name,
+            'R2 (Mean)': final_cv_results['test_r2'].mean(),
+            'R2 (Std)': final_cv_results['test_r2'].std(),
+            'MAE (Mean)': -final_cv_results['test_mae'].mean(), 
+            'MAE (Std)': final_cv_results['test_mae'].std(),
+            'Best Params': best_params,
+            'moldes': final_cv_results['estimator']
+        })
+
+    
+    # 4. Summary
+    results_df = pd.DataFrame(results_list)
+    results_df = results_df.sort_values(by='R2 (Mean)', ascending=False)#
+
+    print(f"\n{'='*20} Final model comparison results {'='*20}")
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.width', 1000)
+    print(results_df[['Model', 'R2 (Mean)', 'R2 (Std)', 'MAE (Mean)', 'MAE (Std)']].to_string(index=False))#
+    
+    return results_df
     
 def parse_args():
     parser = argparse.ArgumentParser(description='OFET mobility prediction')
