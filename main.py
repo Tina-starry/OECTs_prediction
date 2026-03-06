@@ -175,9 +175,9 @@ def main(choice):
         Vth_e=np.zeros(df.shape[0])
         Vth_h=np.zeros(df.shape[0])
         for i in range(len(model1)):    
-            Vth_e+=model1[i].predict(df[col1].values)/len(model)
+            Vth_e+=model1[i].predict(df[col1].values)/len(model1)
         for i in range(len(model2)):    
-            Vth_h+=model2[i].predict(df[col2].values)/len(model)
+            Vth_h+=model2[i].predict(df[col2].values)/len(model1)
         return Vth_h,Vth_e,model2,model1
 
 if __name__ == "__main__":
