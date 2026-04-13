@@ -1,7 +1,7 @@
 import sys
 import random
-#import pandas as pd
-#import numpy as np
+import pandas as pd
+import numpy as np
 sys.path.append('./Code')
 from Code.OECT import *
 
@@ -9,15 +9,15 @@ def parse_args():
     parser = argparse.ArgumentParser(description='OFET mobility prediction')
     parser.add_argument('--OECT_file', type=str, default='data/OECT0.csv',help='Path for experimental OECTs data file')
     parser.add_argument('--Units_file', type=str, default='data/Collected_Units.csv',help='Path for Polymer fragments file')
-    parser.add_argument('--OECTs_features', type=list, default=['HOMO(eV)','LUMO(eV)'],help='OECTs Features that will be processed')
-    parser.add_argument('--OECTs_properties', type=list, default=['uC*','Vth(eV)','u_h','u_e'], help='OECTs properties')
+    parser.add_argument('--OECTs_features', nargs='+', default=['HOMO(eV)','LUMO(eV)'],help='OECTs Features that will be processed')
+    parser.add_argument('--OECTs_properties', nargs='+', default=['uC*','Vth(eV)','u_h','u_e'], help='OECTs properties')
     parser.add_argument('--OFETs_h_model',type=str,default='module/OFET_prediction/Features_12D_hole/',help='Path for OFETs hole mobility predition model')
     parser.add_argument('--OFETs_e_model',type=str,default='module/OFET_prediction/Features_12D_electron/',help='Path for OFETs electron mobility predition model')
     parser.add_argument('--Unimol_Plan_module',type=str,default='module/Unimolsave',help='The path of finetuned Unimol model for planarity prediction')
-    parser.add_argument('--OFETs_features',default=list,default=['HOMO(eV)','LUMO(eV)','COS2-0','COS2-1','COS2-2','COS2-3','COS2-4','COS2-5','COS2-6','COS2-7','COS2-8','COS2-9'],help='Features of OFETs mobility prediction model')
+    parser.add_argument('--OFETs_features',nargs='+',default=['HOMO(eV)','LUMO(eV)','COS2-0','COS2-1','COS2-2','COS2-3','COS2-4','COS2-5','COS2-6','COS2-7','COS2-8','COS2-9'],help='Features of OFETs mobility prediction model')
     parser.add_argument('--Unimol_HL_module',type=str,default='module/UnimolHLsave_INPUT/',help='The path of finetuned Unimol model for HOMO and LUMO prediction')
-    parser.add_argument('--OECTs_features_e',default=list,default=['LUMO(eV)','HOMO(eV)', 'Delta_HOMO','Delta_LUMO','ue_pred'],help='Features of N-type OECTs properties prediction model')
-    parser.add_argument('--OECTs_features_h',default=list,default=['LUMO(eV)','HOMO(eV)', 'Delta_HOMO','Delta_LUMO','uh_pred'],help='Features of P-type OECTs properties prediction model')
+    parser.add_argument('--OECTs_features_e',nargs='+',default=['LUMO(eV)','HOMO(eV)', 'Delta_HOMO','Delta_LUMO','ue_pred'],help='Features of N-type OECTs properties prediction model')
+    parser.add_argument('--OECTs_features_h',nargs='+',default=['LUMO(eV)','HOMO(eV)', 'Delta_HOMO','Delta_LUMO','uh_pred'],help='Features of P-type OECTs properties prediction model')
     parser.add_argument('--OECTs_candidate',type=str,default='data/Generate_2units.npy',help='The path of genrated polymers')
     parser.add_argument('--OECTs_features_selection_PT_N',type=str,default='module/uhC_4features-uC/',help='Data storage path generated during the screening of OECTs property prediction features')
     args = parser.parse_args([])
