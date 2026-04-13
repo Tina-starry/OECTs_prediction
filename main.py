@@ -133,8 +133,8 @@ def main(choice):
         HL_module='module/UnimolHLsave_INPUT'
         dataset_file='data/Generate_2units.npy'            
         #df=Get_dataset_feature(dataset_file,HL_module,module,Units_file,OFET_fea,OFET_h_m,OFET_e_m)
-        col1= ['LUMO(eV)','HOMO(eV)', 'Delta_HOMO','Delta_LUMO','ue_pred']
-        col2= ['LUMO(eV)','HOMO(eV)', 'Delta_HOMO','Delta_LUMO','uh_pred']
+        col1= feature_e_name
+        col2= feature_h_name
         targets=['u_h','u_e','Vth(eV)']
         col=list(set(col1+col2))
         features=pd.DataFrame(index=[i for i in range(len(fea['u_h']))],columns=col+targets+['Vth_e','Vth_h'])
