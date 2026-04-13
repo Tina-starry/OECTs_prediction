@@ -156,8 +156,8 @@ def main(choice):
             X_train, X_val, y_train, y_val = x_train,x_test,y_train,y_test
             final_model = XGBRegressor(random_state=42)
             final_model.fit(X_train, y_train)            
-            val_preds = final_model.predict(X_val+X_train)
-            val_r2 = r2_score(y_val+y_train, val_preds)
+            val_preds = final_model.predict(X_val)
+            val_r2 = r2_score(y_val, val_preds)
             model1.append(final_model)
             
         RS=[5326,6937,6170,6102,7638]
@@ -169,8 +169,8 @@ def main(choice):
             X_train, X_val, y_train, y_val = x_train,x_test,y_train,y_test
             final_model = XGBRegressor(random_state=42)
             final_model.fit(X_train, y_train)            
-            val_preds = final_model.predict(X_val+X_train)
-            val_r2 = r2_score(y_val+y_train, val_preds)
+            val_preds = final_model.predict(X_val)
+            val_r2 = r2_score(y_val, val_preds)
             model2.append(final_model)
         Vth_e=np.zeros(df.shape[0])
         Vth_h=np.zeros(df.shape[0])
